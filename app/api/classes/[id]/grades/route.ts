@@ -8,10 +8,10 @@ const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
-    const { id } = await params;
+    const { id } = context.params;
 
     // Get auth token from header
     const authHeader = request.headers.get("Authorization");
@@ -23,24 +23,28 @@ export async function GET(
     const decoded = verifyToken(token);
 
     // Verify class exists
-    const classData = await convex.query(api.classes.getById, {
-      id: id as Id<"classes">,
-    });
+    const classes = await convex.query(api.classes.list);
+    const classDetails = classes.find(
+      (c) => c._id === id || c._id.toString() === id
+    );
 
-    if (!classData) {
+    if (!classDetails) {
       return NextResponse.json({ error: "Class not found" }, { status: 404 });
     }
 
-    // Get grades for class
+    // Get grades for the class
     const grades = await convex.query(api.grades.listByClass, {
-      classId: id as Id<"classes">,
+      classId: classDetails._id,
     });
 
     return NextResponse.json(grades);
   } catch (error) {
-    console.error("Error listing grades:", error);
+    console.error("Error getting class grades:", error);
     if (error instanceof Error && error.message === "Invalid token") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (error instanceof Error && error.message.includes("not found")) {
+      return NextResponse.json({ error: error.message }, { status: 404 });
     }
     return NextResponse.json(
       { error: "Internal server error" },

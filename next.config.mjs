@@ -10,7 +10,7 @@ const nextConfig = {
     return config;
   },
   experimental: {
-    serverComponentsExternalPackages: ["convex"],
+    serverExternalPackages: ["convex"],
   },
 };
 
