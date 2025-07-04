@@ -8,7 +8,6 @@ export const create = mutation({
     name: v.string(),
     email: v.string(),
     password: v.string(),
-    role: v.string(),
   },
   handler: async (ctx, args) => {
     const existingUser = await ctx.db
@@ -26,7 +25,6 @@ export const create = mutation({
       name: args.name,
       email: args.email,
       password: hashedPassword,
-      role: args.role,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });
