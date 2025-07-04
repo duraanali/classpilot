@@ -2,45 +2,68 @@
 
 Base URL: `https://classpilot-chi.vercel.app`
 
-All requests require authentication using a Bearer token in the Authorization header:
+All requests require authentication using a Bearer token in the Authorization header (except for register and login):
 
 ```
 Authorization: Bearer <your_token>
 ```
 
+## Table of Contents
+
+- [Authentication](#authentication)
+- [Students](#students)
+- [Classes](#classes)
+- [Grades](#grades)
+- [Class Enrollments](#class-enrollments)
+- [Error Codes](#error-codes)
+
+---
+
 ## Authentication
 
 ### Register
+
+Creates a new teacher account.
 
 ```http
 POST /api/auth/register
 ```
 
-Request Body:
+**Request Body:**
 
 ```json
 {
-  "name": "string",
-  "email": "string",
-  "password": "string",
+  "name": "string (required, min 2 characters)",
+  "email": "string (required, valid email)",
+  "password": "string (required, min 6 characters)"
 }
 ```
 
-Response:
+**Response (201 Created):**
 
 ```json
 {
-  "token": "string",
+  "token": "string (JWT token)",
   "user": {
-    "id": "string",
+    "_id": "string",
     "name": "string",
     "email": "string",
-    "role": "string"
+    "role": "Teacher",
+    "createdAt": "string (ISO date)",
+    "updatedAt": "string (ISO date)"
   }
 }
 ```
 
+**Error Responses:**
+
+- `400 Bad Request`: Invalid input data
+- `409 Conflict`: Email already registered
+- `500 Internal Server Error`: Server error
+
 ### Login
+
+Authenticates a teacher and returns a JWT token.
 
 ```http
 POST /api/auth/login
@@ -50,8 +73,8 @@ Request Body:
 
 ```json
 {
-  "email": "string",
-  "password": "string"
+  "email": "string (required, valid email)",
+  "password": "string (required)"
 }
 ```
 
@@ -59,17 +82,27 @@ Response:
 
 ```json
 {
-  "token": "string",
+  "token": "string (JWT token)",
   "user": {
-    "id": "string",
+    "_id": "string",
     "name": "string",
     "email": "string",
-    "role": "string"
+    "role": "string",
+    "createdAt": "string (ISO date)",
+    "updatedAt": "string (ISO date)"
   }
 }
 ```
 
+**Error Responses:**
+
+- `400 Bad Request`: Invalid input data
+- `401 Unauthorized`: Invalid credentials
+- `500 Internal Server Error`: Server error
+
 ### Get Current User
+
+Returns the current authenticated user's information.
 
 ```http
 GET /api/auth/me
@@ -79,16 +112,27 @@ Response:
 
 ```json
 {
-  "id": "string",
+  "_id": "string",
   "name": "string",
   "email": "string",
-  "role": "string"
+  "role": "string",
+  "createdAt": "string (ISO date)",
+  "updatedAt": "string (ISO date)"
 }
 ```
+
+**Error Responses:**
+
+- `401 Unauthorized`: Invalid or missing token
+- `500 Internal Server Error`: Server error
+
+---
 
 ## Students
 
 ### List Students
+
+Returns all students created by the authenticated teacher.
 
 ```http
 GET /api/students
@@ -99,22 +143,30 @@ Response:
 ```json
 [
   {
-    "id": "string",
+    "_id": "string",
     "name": "string",
     "email": "string",
     "grade": "number",
-    "age": "number",
-    "gender": "string",
-    "notes": "string",
-    "parentEmail": "string",
-    "parentPhone": "string",
-    "createdAt": "string",
-    "updatedAt": "string"
+    "age": "number (optional)",
+    "gender": "string (optional)",
+    "notes": "string (optional)",
+    "parentEmail": "string (optional)",
+    "parentPhone": "string (optional)",
+    "teacherId": "string",
+    "createdAt": "string (ISO date)",
+    "updatedAt": "string (ISO date)"
   }
 ]
 ```
 
+**Error Responses:**
+
+- `401 Unauthorized`: Invalid or missing token
+- `500 Internal Server Error`: Server error
+
 ### Create Student
+
+Creates a new student associated with the authenticated teacher.
 
 ```http
 POST /api/students
@@ -124,14 +176,13 @@ Request Body:
 
 ```json
 {
-  "name": "string",
-  "email": "string",
-  "grade": "number",
-  "age": "number",
-  "gender": "string",
-  "notes": "string",
-  "parentEmail": "string",
-  "parentPhone": "string"
+  "full_name": "string (required, min 2 characters)",
+  "age": "number (required, 5-18)",
+  "gender": "string (optional)",
+  "notes": "string (optional)",
+  "email": "string (optional, valid email)",
+  "parentEmail": "string (optional, valid email)",
+  "parentPhone": "string (optional)"
 }
 ```
 
@@ -139,21 +190,31 @@ Response:
 
 ```json
 {
-  "id": "string",
+  "_id": "string",
   "name": "string",
-  "email": "string",
-  "grade": "number",
+  "email": "string (auto-generated if not provided)",
+  "grade": "number (auto-calculated from age)",
   "age": "number",
   "gender": "string",
   "notes": "string",
   "parentEmail": "string",
   "parentPhone": "string",
-  "createdAt": "string",
-  "updatedAt": "string"
+  "teacherId": "string",
+  "createdAt": "string (ISO date)",
+  "updatedAt": "string (ISO date)"
 }
 ```
 
+**Error Responses:**
+
+- `400 Bad Request`: Validation failed
+- `401 Unauthorized`: Invalid or missing token
+- `409 Conflict`: Email already exists
+- `500 Internal Server Error`: Server error
+
 ### Get Student
+
+Returns a specific student by ID (only if owned by the authenticated teacher).
 
 ```http
 GET /api/students/{id}
@@ -163,7 +224,7 @@ Response:
 
 ```json
 {
-  "id": "string",
+  "_id": "string",
   "name": "string",
   "email": "string",
   "grade": "number",
@@ -172,12 +233,21 @@ Response:
   "notes": "string",
   "parentEmail": "string",
   "parentPhone": "string",
-  "createdAt": "string",
-  "updatedAt": "string"
+  "teacherId": "string",
+  "createdAt": "string (ISO date)",
+  "updatedAt": "string (ISO date)"
 }
 ```
 
+**Error Responses:**
+
+- `401 Unauthorized`: Invalid or missing token
+- `404 Not Found`: Student not found or not owned by teacher
+- `500 Internal Server Error`: Server error
+
 ### Update Student
+
+Updates a specific student (only if owned by the authenticated teacher).
 
 ```http
 PUT /api/students/{id}
@@ -187,14 +257,13 @@ Request Body:
 
 ```json
 {
-  "name": "string",
-  "email": "string",
-  "grade": "number",
-  "age": "number",
-  "gender": "string",
-  "notes": "string",
-  "parentEmail": "string",
-  "parentPhone": "string"
+  "full_name": "string (optional, min 2 characters)",
+  "age": "number (optional, 5-18)",
+  "gender": "string (optional)",
+  "notes": "string (optional)",
+  "email": "string (optional, valid email)",
+  "parentEmail": "string (optional, valid email)",
+  "parentPhone": "string (optional)"
 }
 ```
 
@@ -202,7 +271,7 @@ Response:
 
 ```json
 {
-  "id": "string",
+  "_id": "string",
   "name": "string",
   "email": "string",
   "grade": "number",
@@ -211,12 +280,23 @@ Response:
   "notes": "string",
   "parentEmail": "string",
   "parentPhone": "string",
-  "createdAt": "string",
-  "updatedAt": "string"
+  "teacherId": "string",
+  "createdAt": "string (ISO date)",
+  "updatedAt": "string (ISO date)"
 }
 ```
 
+**Error Responses:**
+
+- `400 Bad Request`: Validation failed
+- `401 Unauthorized`: Invalid or missing token
+- `404 Not Found`: Student not found or not owned by teacher
+- `409 Conflict`: Email already exists
+- `500 Internal Server Error`: Server error
+
 ### Delete Student
+
+Deletes a specific student and all related grades and enrollments (only if owned by the authenticated teacher).
 
 ```http
 DELETE /api/students/{id}
@@ -231,9 +311,19 @@ Response:
 }
 ```
 
+**Error Responses:**
+
+- `401 Unauthorized`: Invalid or missing token
+- `404 Not Found`: Student not found or not owned by teacher
+- `500 Internal Server Error`: Server error
+
+---
+
 ## Classes
 
 ### List Classes
+
+Returns all classes created by the authenticated teacher.
 
 ```http
 GET /api/classes
@@ -244,7 +334,7 @@ Response:
 ```json
 [
   {
-    "id": "string",
+    "_id": "string",
     "name": "string",
     "description": "string",
     "subject": "string",
@@ -252,13 +342,20 @@ Response:
     "schedule": "string",
     "capacity": "number",
     "teacherId": "string",
-    "createdAt": "string",
-    "updatedAt": "string"
+    "createdAt": "string (ISO date)",
+    "updatedAt": "string (ISO date)"
   }
 ]
 ```
 
+**Error Responses:**
+
+- `401 Unauthorized`: Invalid or missing token
+- `500 Internal Server Error`: Server error
+
 ### Create Class
+
+Creates a new class associated with the authenticated teacher.
 
 ```http
 POST /api/classes
@@ -268,12 +365,12 @@ Request Body:
 
 ```json
 {
-  "name": "string",
-  "description": "string",
-  "subject": "string",
-  "gradeLevel": "number",
-  "schedule": "string",
-  "capacity": "number"
+  "name": "string (required, min 2 characters)",
+  "description": "string (optional, min 10 characters)",
+  "subject": "string (optional)",
+  "grade_level": "number (optional, 1-12)",
+  "schedule": "string (optional)",
+  "capacity": "number (optional, min 1)"
 }
 ```
 
@@ -281,7 +378,7 @@ Response:
 
 ```json
 {
-  "id": "string",
+  "_id": "string",
   "name": "string",
   "description": "string",
   "subject": "string",
@@ -289,12 +386,20 @@ Response:
   "schedule": "string",
   "capacity": "number",
   "teacherId": "string",
-  "createdAt": "string",
-  "updatedAt": "string"
+  "createdAt": "string (ISO date)",
+  "updatedAt": "string (ISO date)"
 }
 ```
 
+**Error Responses:**
+
+- `400 Bad Request`: Validation failed
+- `401 Unauthorized`: Invalid or missing token
+- `500 Internal Server Error`: Server error
+
 ### Get Class
+
+Returns a specific class with enrolled students (only if owned by the authenticated teacher).
 
 ```http
 GET /api/classes/{id}
@@ -304,7 +409,7 @@ Response:
 
 ```json
 {
-  "id": "string",
+  "_id": "string",
   "name": "string",
   "description": "string",
   "subject": "string",
@@ -312,12 +417,35 @@ Response:
   "schedule": "string",
   "capacity": "number",
   "teacherId": "string",
-  "createdAt": "string",
-  "updatedAt": "string"
+  "createdAt": "string (ISO date)",
+  "updatedAt": "string (ISO date)",
+  "students": [
+    {
+      "_id": "string",
+      "name": "string",
+      "email": "string",
+      "grade": "number",
+      "age": "number",
+      "gender": "string",
+      "notes": "string",
+      "parentEmail": "string",
+      "parentPhone": "string",
+      "enrolledAt": "string (ISO date)"
+    }
+  ],
+  "studentCount": "number"
 }
 ```
 
+**Error Responses:**
+
+- `401 Unauthorized`: Invalid or missing token
+- `404 Not Found`: Class not found or not owned by teacher
+- `500 Internal Server Error`: Server error
+
 ### Update Class
+
+Updates a specific class (only if owned by the authenticated teacher).
 
 ```http
 PUT /api/classes/{id}
@@ -327,12 +455,12 @@ Request Body:
 
 ```json
 {
-  "name": "string",
-  "description": "string",
-  "subject": "string",
-  "gradeLevel": "number",
-  "schedule": "string",
-  "capacity": "number"
+  "name": "string (optional, min 2 characters)",
+  "description": "string (optional, min 10 characters)",
+  "subject": "string (optional)",
+  "grade_level": "number (optional, 1-12)",
+  "schedule": "string (optional)",
+  "capacity": "number (optional, min 1)"
 }
 ```
 
@@ -340,7 +468,7 @@ Response:
 
 ```json
 {
-  "id": "string",
+  "_id": "string",
   "name": "string",
   "description": "string",
   "subject": "string",
@@ -348,12 +476,36 @@ Response:
   "schedule": "string",
   "capacity": "number",
   "teacherId": "string",
-  "createdAt": "string",
-  "updatedAt": "string"
+  "createdAt": "string (ISO date)",
+  "updatedAt": "string (ISO date)",
+  "students": [
+    {
+      "_id": "string",
+      "name": "string",
+      "email": "string",
+      "grade": "number",
+      "age": "number",
+      "gender": "string",
+      "notes": "string",
+      "parentEmail": "string",
+      "parentPhone": "string",
+      "enrolledAt": "string (ISO date)"
+    }
+  ],
+  "studentCount": "number"
 }
 ```
 
+**Error Responses:**
+
+- `400 Bad Request`: Validation failed
+- `401 Unauthorized`: Invalid or missing token
+- `404 Not Found`: Class not found or not owned by teacher
+- `500 Internal Server Error`: Server error
+
 ### Delete Class
+
+Deletes a specific class and all related grades and enrollments (only if owned by the authenticated teacher).
 
 ```http
 DELETE /api/classes/{id}
@@ -368,9 +520,19 @@ Response:
 }
 ```
 
-## Class Students
+**Error Responses:**
+
+- `401 Unauthorized`: Invalid or missing token
+- `404 Not Found`: Class not found or not owned by teacher
+- `500 Internal Server Error`: Server error
+
+---
+
+## Class Enrollments
 
 ### List Students in Class
+
+Returns all students enrolled in a specific class (only if owned by the authenticated teacher).
 
 ```http
 GET /api/classes/{id}/students
@@ -381,7 +543,7 @@ Response:
 ```json
 [
   {
-    "id": "string",
+    "_id": "string",
     "name": "string",
     "email": "string",
     "grade": "number",
@@ -390,13 +552,23 @@ Response:
     "notes": "string",
     "parentEmail": "string",
     "parentPhone": "string",
-    "createdAt": "string",
-    "updatedAt": "string"
+    "teacherId": "string",
+    "createdAt": "string (ISO date)",
+    "updatedAt": "string (ISO date)",
+    "enrolledAt": "string (ISO date)"
   }
 ]
 ```
 
-### Assign Students to Class
+**Error Responses:**
+
+- `401 Unauthorized`: Invalid or missing token
+- `404 Not Found`: Class not found or not owned by teacher
+- `500 Internal Server Error`: Server error
+
+### Enroll Students in Class
+
+Enrolls multiple students in a specific class (only if owned by the authenticated teacher).
 
 ```http
 POST /api/classes/{id}/students
@@ -406,7 +578,7 @@ Request Body:
 
 ```json
 {
-  "studentIds": ["string"]
+  "student_ids": ["string", "string"] (required, array of student IDs)
 }
 ```
 
@@ -414,12 +586,22 @@ Response:
 
 ```json
 {
-  "success": true,
-  "message": "Students assigned successfully"
+  "enrollmentIds": ["string", "string"],
+  "message": "Students enrolled successfully"
 }
 ```
 
+**Error Responses:**
+
+- `400 Bad Request`: Validation failed or capacity exceeded
+- `401 Unauthorized`: Invalid or missing token
+- `403 Forbidden`: Students or class not owned by teacher
+- `404 Not Found`: Class not found or not owned by teacher
+- `500 Internal Server Error`: Server error
+
 ### Remove Student from Class
+
+Removes a specific student from a class (only if owned by the authenticated teacher).
 
 ```http
 DELETE /api/classes/{id}/students/{studentId}
@@ -434,9 +616,20 @@ Response:
 }
 ```
 
+**Error Responses:**
+
+- `401 Unauthorized`: Invalid or missing token
+- `403 Forbidden`: Student or class not owned by teacher
+- `404 Not Found`: Student not enrolled or not owned by teacher
+- `500 Internal Server Error`: Server error
+
+---
+
 ## Grades
 
 ### Create Grade
+
+Creates a new grade for a student in a specific class (only if owned by the authenticated teacher).
 
 ```http
 POST /api/grades
@@ -446,10 +639,10 @@ Request Body:
 
 ```json
 {
-  "student_id": "string",
-  "class_id": "string",
-  "assignment": "string",
-  "score": "number"
+  "student_id": "string (required, student ID)",
+  "class_id": "string (required, class ID)",
+  "assignment": "string (required, min 1 character)",
+  "score": "number (required, 0-100)"
 }
 ```
 
@@ -457,47 +650,52 @@ Response:
 
 ```json
 {
-  "id": "string",
+  "_id": "string",
   "studentId": "string",
   "classId": "string",
   "assignment": "string",
   "score": "number",
-  "createdAt": "string",
-  "updatedAt": "string"
-}
-```
-
-### Get Grade
-
-```http
-GET /api/grades/{id}
-```
-
-Response:
-
-```json
-{
-  "id": "string",
-  "studentId": "string",
-  "classId": "string",
-  "assignment": "string",
-  "score": "number",
-  "createdAt": "string",
-  "updatedAt": "string",
+  "createdAt": "string (ISO date)",
+  "updatedAt": "string (ISO date)",
   "student": {
-    "id": "string",
+    "_id": "string",
     "name": "string",
-    "email": "string"
+    "email": "string",
+    "grade": "number",
+    "age": "number",
+    "gender": "string",
+    "notes": "string",
+    "parentEmail": "string",
+    "parentPhone": "string",
+    "teacherId": "string",
+    "createdAt": "string (ISO date)",
+    "updatedAt": "string (ISO date)"
   },
   "class": {
-    "id": "string",
+    "_id": "string",
     "name": "string",
-    "subject": "string"
+    "description": "string",
+    "subject": "string",
+    "gradeLevel": "number",
+    "schedule": "string",
+    "capacity": "number",
+    "teacherId": "string",
+    "createdAt": "string (ISO date)",
+    "updatedAt": "string (ISO date)"
   }
 }
 ```
 
+**Error Responses:**
+
+- `400 Bad Request`: Validation failed or student not enrolled
+- `401 Unauthorized`: Invalid or missing token
+- `403 Forbidden`: Student or class not owned by teacher
+- `500 Internal Server Error`: Server error
+
 ### Update Grade
+
+Updates a specific grade (only if owned by the authenticated teacher).
 
 ```http
 PUT /api/grades/{id}
@@ -507,8 +705,8 @@ Request Body:
 
 ```json
 {
-  "assignment": "string",
-  "score": "number"
+  "assignment": "string (optional, min 1 character)",
+  "score": "number (optional, 0-100)"
 }
 ```
 
@@ -516,17 +714,53 @@ Response:
 
 ```json
 {
-  "id": "string",
+  "_id": "string",
   "studentId": "string",
   "classId": "string",
   "assignment": "string",
   "score": "number",
-  "createdAt": "string",
-  "updatedAt": "string"
+  "createdAt": "string (ISO date)",
+  "updatedAt": "string (ISO date)",
+  "student": {
+    "_id": "string",
+    "name": "string",
+    "email": "string",
+    "grade": "number",
+    "age": "number",
+    "gender": "string",
+    "notes": "string",
+    "parentEmail": "string",
+    "parentPhone": "string",
+    "teacherId": "string",
+    "createdAt": "string (ISO date)",
+    "updatedAt": "string (ISO date)"
+  },
+  "class": {
+    "_id": "string",
+    "name": "string",
+    "description": "string",
+    "subject": "string",
+    "gradeLevel": "number",
+    "schedule": "string",
+    "capacity": "number",
+    "teacherId": "string",
+    "createdAt": "string (ISO date)",
+    "updatedAt": "string (ISO date)"
+  }
 }
 ```
 
+**Error Responses:**
+
+- `400 Bad Request`: Validation failed
+- `401 Unauthorized`: Invalid or missing token
+- `403 Forbidden`: Grade not owned by teacher
+- `404 Not Found`: Grade not found or not owned by teacher
+- `500 Internal Server Error`: Server error
+
 ### Delete Grade
+
+Deletes a specific grade (only if owned by the authenticated teacher).
 
 ```http
 DELETE /api/grades/{id}
@@ -541,126 +775,80 @@ Response:
 }
 ```
 
-### List Grades for Class
+**Error Responses:**
 
-```http
-GET /api/classes/{id}/grades
-```
+- `401 Unauthorized`: Invalid or missing token
+- `403 Forbidden`: Grade not owned by teacher
+- `404 Not Found`: Grade not found or not owned by teacher
+- `500 Internal Server Error`: Server error
 
-Response:
+---
 
-```json
-[
-  {
-    "id": "string",
-    "studentId": "string",
-    "classId": "string",
-    "assignment": "string",
-    "score": "number",
-    "createdAt": "string",
-    "updatedAt": "string",
-    "student": {
-      "id": "string",
-      "name": "string",
-      "email": "string"
-    }
-  }
-]
-```
+## Error Codes
 
-### List Grades for Student
+### HTTP Status Codes
 
-```http
-GET /api/students/{id}/grades
-```
+| Code | Status                | Description                                              |
+| ---- | --------------------- | -------------------------------------------------------- |
+| 200  | OK                    | Request successful                                       |
+| 201  | Created               | Resource created successfully                            |
+| 400  | Bad Request           | Invalid input data or validation failed                  |
+| 401  | Unauthorized          | Invalid or missing authentication token                  |
+| 403  | Forbidden             | Insufficient permissions to access resource              |
+| 404  | Not Found             | Resource not found or not owned by teacher               |
+| 409  | Conflict              | Resource already exists (e.g., email already registered) |
+| 500  | Internal Server Error | Unexpected server error                                  |
 
-Response:
+### Error Response Format
 
-```json
-[
-  {
-    "id": "string",
-    "studentId": "string",
-    "classId": "string",
-    "assignment": "string",
-    "score": "number",
-    "createdAt": "string",
-    "updatedAt": "string",
-    "class": {
-      "id": "string",
-      "name": "string",
-      "subject": "string"
-    }
-  }
-]
-```
-
-## Error Responses
-
-All endpoints may return the following error responses:
-
-### 400 Bad Request
+All error responses follow this format:
 
 ```json
 {
-  "error": "Invalid input",
+  "error": "string (error type)",
+  "message": "string (user-friendly error message)",
   "details": [
     {
-      "code": "string",
-      "path": ["string"],
-      "message": "string"
+      "field": "string (field name)",
+      "message": "string (field-specific error)",
+      "code": "string (error code)"
     }
   ],
-  "received": {}
+  "received": "object (optional, received data for debugging)"
 }
 ```
 
-### 401 Unauthorized
+### Common Error Messages
 
-```json
-{
-  "error": "Unauthorized"
-}
-```
+| Error Type        | Message                                                   | Description                                |
+| ----------------- | --------------------------------------------------------- | ------------------------------------------ |
+| Validation failed | Please check the provided data and try again              | Input validation failed                    |
+| Unauthorized      | Invalid or missing authentication token                   | Authentication required                    |
+| Forbidden         | Student not found or not owned by teacher                 | Insufficient permissions                   |
+| Not found         | Class not found or you don't have permission to access it | Resource not found or not owned            |
+| Capacity exceeded | Adding these students would exceed class capacity         | Class capacity limit reached               |
+| Enrollment error  | Student is not enrolled in this class                     | Student must be enrolled to receive grades |
 
-### 404 Not Found
+---
 
-```json
-{
-  "error": "Resource not found"
-}
-```
+## Authentication Flow
 
-### 500 Internal Server Error
+1. **Register**: Create a new teacher account
+2. **Login**: Authenticate and receive JWT token
+3. **Use Token**: Include token in Authorization header for all subsequent requests
+4. **Token Expiry**: Re-authenticate when token expires
 
-```json
-{
-  "error": "Internal server error"
-}
-```
+## Data Relationships
+
+- **Teachers** can only manage their own **Students**, **Classes**, and **Grades**
+- **Students** must be enrolled in a **Class** to receive **Grades**
+- **Classes** have a **capacity** limit for student enrollments
+- **Cascade Deletion**: Deleting a **Student** or **Class** automatically deletes related **Grades** and **Enrollments**
 
 ## Rate Limiting
 
-The API implements rate limiting to ensure fair usage. The current limits are:
+Currently, no rate limiting is implemented. Please use the API responsibly.
 
-- 100 requests per minute per IP address
-- 1000 requests per hour per IP address
+## Support
 
-When rate limited, you'll receive a 429 Too Many Requests response:
-
-```json
-{
-  "error": "Too many requests",
-  "retryAfter": "number"
-}
-```
-
-## Best Practices
-
-1. Always include the Authorization header with a valid Bearer token
-2. Handle rate limiting by implementing exponential backoff
-3. Validate request bodies before sending
-4. Handle all possible error responses
-5. Use appropriate HTTP methods for each operation
-6. Keep your authentication token secure
-7. Implement proper error handling in your client applications
+For API support or questions, please contact the development team.
