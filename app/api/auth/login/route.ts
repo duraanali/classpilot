@@ -19,8 +19,8 @@ export async function POST(request: Request) {
     const body = await request.json();
     const validatedData = loginSchema.parse(body);
 
-    // Fetch user from Convex
-    const user = await convex.query(api.users.getByEmail, {
+    // Get user with password for verification
+    const user = await convex.query(api.users.getByEmailWithPassword, {
       email: validatedData.email,
     });
 
@@ -31,7 +31,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Verify password
+    // Verify password using bcrypt
     const isValidPassword = await bcrypt.compare(
       validatedData.password,
       user.password

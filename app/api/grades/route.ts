@@ -21,7 +21,13 @@ export async function POST(request: Request) {
     // Get auth token from header
     const authHeader = request.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        {
+          error: "Unauthorized",
+          message: "Invalid or missing authentication token",
+        },
+        { status: 401 }
+      );
     }
 
     const token = authHeader.split(" ")[1];
@@ -29,7 +35,6 @@ export async function POST(request: Request) {
 
     // Parse and validate request body
     requestBody = await request.json();
-    console.log("Create grade request body:", requestBody);
 
     // Handle legacy 'title' field
     if (requestBody.title && !requestBody.assignment) {
@@ -38,66 +43,86 @@ export async function POST(request: Request) {
     }
 
     const validatedData = createGradeSchema.parse(requestBody);
-    console.log("Validated data:", validatedData);
 
-    // First, try to get the student and class to verify they exist
-    // and get their proper IDs
-    const students = await convex.query(api.students.list);
-    const student = students.find(
-      (s) =>
-        s._id === validatedData.student_id ||
-        s._id.toString() === validatedData.student_id
-    );
-
-    if (!student) {
-      return NextResponse.json({ error: "Student not found" }, { status: 404 });
-    }
-
-    const classes = await convex.query(api.classes.list);
-    const classDetails = classes.find(
-      (c) =>
-        c._id === validatedData.class_id ||
-        c._id.toString() === validatedData.class_id
-    );
-
-    if (!classDetails) {
-      return NextResponse.json({ error: "Class not found" }, { status: 404 });
-    }
-
-    // Create grade in Convex using the proper IDs
+    // Create grade in Convex with teacher authorization
     const gradeId = await convex.mutation(api.grades.create, {
-      studentId: student._id,
-      classId: classDetails._id,
+      studentId: validatedData.student_id as Id<"students">,
+      classId: validatedData.class_id as Id<"classes">,
       assignment: validatedData.assignment,
       score: validatedData.score,
+      teacherId: decoded.userId as any,
     });
 
-    // Get created grade
+    // Get created grade with teacher authorization
     const grade = await convex.query(api.grades.getById, {
       id: gradeId,
+      teacherId: decoded.userId as any,
     });
 
-    return NextResponse.json(grade);
-  } catch (error) {
-    console.error("Error creating grade:", error);
-    if (error instanceof z.ZodError) {
+    if (!grade) {
       return NextResponse.json(
         {
-          error: "Invalid input",
-          details: error.errors,
+          error: "Not found",
+          message: "Grade not found or you don't have permission to access it",
+        },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(grade, { status: 201 });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      const errorDetails = error.errors.map((err) => ({
+        field: err.path.join("."),
+        message: err.message,
+        code: err.code,
+      }));
+
+      return NextResponse.json(
+        {
+          error: "Validation failed",
+          message: "Please check the provided data and try again",
+          details: errorDetails,
           received: requestBody,
         },
         { status: 400 }
       );
     }
     if (error instanceof Error && error.message === "Invalid token") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        {
+          error: "Unauthorized",
+          message: "Invalid or missing authentication token",
+        },
+        { status: 401 }
+      );
     }
     if (error instanceof Error && error.message.includes("not enrolled")) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
+      return NextResponse.json(
+        {
+          error: "Enrollment error",
+          message: error.message,
+        },
+        { status: 400 }
+      );
+    }
+    if (
+      error instanceof Error &&
+      error.message.includes("not owned by teacher")
+    ) {
+      return NextResponse.json(
+        {
+          error: "Forbidden",
+          message: error.message,
+        },
+        { status: 403 }
+      );
     }
     return NextResponse.json(
-      { error: "Internal server error" },
+      {
+        error: "Internal server error",
+        message: "An unexpected error occurred while creating the grade",
+      },
       { status: 500 }
     );
   }

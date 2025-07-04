@@ -20,15 +20,16 @@ export async function POST(request: Request) {
     const body = await request.json();
     const validatedData = registerSchema.parse(body);
 
-    // Hash password
+    // Hash password using bcrypt (this is fine in Next.js API routes)
     const hashedPassword = await bcrypt.hash(validatedData.password, 10);
 
     try {
-      // Create user in Convex
+      // Create user in Convex with already hashed password
       const userId = await convex.mutation(api.users.create, {
         name: validatedData.name,
         email: validatedData.email,
         password: hashedPassword,
+        role: "Teacher",
       });
 
       // Generate token
@@ -44,11 +45,10 @@ export async function POST(request: Request) {
         throw new Error("Failed to create user");
       }
 
-      // Return user data (excluding password) and token
-      const { password, ...userWithoutPassword } = user;
+      // Return user data and token (user already excludes password)
       return NextResponse.json({
         token,
-        user: userWithoutPassword,
+        user,
       });
     } catch (error) {
       if (error instanceof Error && error.message.includes("already exists")) {

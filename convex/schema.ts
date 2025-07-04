@@ -21,17 +21,20 @@ export default defineSchema({
     notes: v.optional(v.string()),
     parentEmail: v.optional(v.string()),
     parentPhone: v.optional(v.string()),
+    teacherId: v.id("users"),
     createdAt: v.string(),
     updatedAt: v.string(),
-  }).index("by_email", ["email"]),
+  })
+    .index("by_email", ["email"])
+    .index("by_teacher", ["teacherId"]),
 
   classes: defineTable({
     name: v.string(),
-    description: v.string(),
-    subject: v.string(),
-    gradeLevel: v.number(),
-    schedule: v.string(),
-    capacity: v.number(),
+    description: v.optional(v.string()),
+    subject: v.optional(v.string()),
+    gradeLevel: v.optional(v.number()),
+    schedule: v.optional(v.string()),
+    capacity: v.optional(v.number()),
     teacherId: v.id("users"),
     createdAt: v.string(),
     updatedAt: v.string(),

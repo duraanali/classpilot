@@ -9,12 +9,21 @@ const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
 // Validation schema for updating a student
 const updateStudentSchema = z.object({
-  full_name: z.string().min(2).optional(),
-  age: z.number().min(5).max(18).optional(),
+  name: z.string().min(2, "Name must be at least 2 characters").optional(),
+  email: z.string().email("Invalid email address").optional(),
+  grade: z
+    .number()
+    .min(1, "Grade must be at least 1")
+    .max(12, "Grade must be at most 12")
+    .optional(),
+  age: z
+    .number()
+    .min(5, "Age must be at least 5")
+    .max(18, "Age must be at most 18")
+    .optional(),
   gender: z.string().optional(),
   notes: z.string().optional(),
-  email: z.string().email().optional(),
-  parentEmail: z.string().email().optional(),
+  parentEmail: z.string().email("Invalid parent email").optional(),
   parentPhone: z.string().optional(),
 });
 
@@ -34,22 +43,39 @@ export async function GET(
     const token = authHeader.split(" ")[1];
     const decoded = verifyToken(token);
 
-    // Get student by ID
-    const student = await convex.query(api.students.getById, {
+    // Get student by ID and check if it belongs to the authenticated teacher
+    const student = await convex.query(api.students.getByIdAndTeacher, {
       id: id as Id<"students">,
+      teacherId: decoded.userId as any,
     });
 
     if (!student) {
-      return NextResponse.json({ error: "Student not found" }, { status: 404 });
+      return NextResponse.json(
+        {
+          error: "Not found",
+          message:
+            "Student not found or you don't have permission to access it",
+        },
+        { status: 404 }
+      );
     }
 
     return NextResponse.json(student);
   } catch (error) {
     if (error instanceof Error && error.message === "Invalid token") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        {
+          error: "Unauthorized",
+          message: "Invalid or missing authentication token",
+        },
+        { status: 401 }
+      );
     }
     return NextResponse.json(
-      { error: "Internal server error" },
+      {
+        error: "Internal server error",
+        message: "An unexpected error occurred while fetching the student",
+      },
       { status: 500 }
     );
   }
@@ -86,9 +112,7 @@ export async function PUT(
     // Transform the data to match the Convex schema
     const updateData = {
       ...validatedData,
-      name: validatedData.full_name, // Map full_name to name
     };
-    delete updateData.full_name; // Remove full_name as it's not in the Convex schema
 
     // If age is provided, calculate grade
     if (validatedData.age) {
@@ -96,6 +120,23 @@ export async function PUT(
     }
 
     console.log("Final update data:", updateData);
+
+    // Check if student belongs to the authenticated teacher
+    const existingStudent = await convex.query(api.students.getByIdAndTeacher, {
+      id: id as Id<"students">,
+      teacherId: decoded.userId as any,
+    });
+
+    if (!existingStudent) {
+      return NextResponse.json(
+        {
+          error: "Not found",
+          message:
+            "Student not found or you don't have permission to modify it",
+        },
+        { status: 404 }
+      );
+    }
 
     // Update student in Convex
     await convex.mutation(api.students.update, {
@@ -114,22 +155,37 @@ export async function PUT(
 
     return NextResponse.json(student);
   } catch (error) {
-    console.error("Error updating student:", error);
     if (error instanceof z.ZodError) {
+      const errorDetails = error.errors.map((err) => ({
+        field: err.path.join("."),
+        message: err.message,
+        code: err.code,
+      }));
+
       return NextResponse.json(
         {
-          error: "Invalid input",
-          details: error.errors,
+          error: "Validation failed",
+          message: "Please check the provided data and try again",
+          details: errorDetails,
           received: body,
         },
         { status: 400 }
       );
     }
     if (error instanceof Error && error.message === "Invalid token") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        {
+          error: "Unauthorized",
+          message: "Invalid or missing authentication token",
+        },
+        { status: 401 }
+      );
     }
     return NextResponse.json(
-      { error: "Internal server error" },
+      {
+        error: "Internal server error",
+        message: "An unexpected error occurred while updating the student",
+      },
       { status: 500 }
     );
   }
@@ -151,18 +207,47 @@ export async function DELETE(
     const token = authHeader.split(" ")[1];
     const decoded = verifyToken(token);
 
+    // Check if student belongs to the authenticated teacher
+    const existingStudent = await convex.query(api.students.getByIdAndTeacher, {
+      id: id as Id<"students">,
+      teacherId: decoded.userId as any,
+    });
+
+    if (!existingStudent) {
+      return NextResponse.json(
+        {
+          error: "Not found",
+          message:
+            "Student not found or you don't have permission to delete it",
+        },
+        { status: 404 }
+      );
+    }
+
     // Delete student from Convex
     await convex.mutation(api.students.remove, {
       id: id as Id<"students">,
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      success: true,
+      message: "Student deleted successfully",
+    });
   } catch (error) {
     if (error instanceof Error && error.message === "Invalid token") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        {
+          error: "Unauthorized",
+          message: "Invalid or missing authentication token",
+        },
+        { status: 401 }
+      );
     }
     return NextResponse.json(
-      { error: "Internal server error" },
+      {
+        error: "Internal server error",
+        message: "An unexpected error occurred while deleting the student",
+      },
       { status: 500 }
     );
   }

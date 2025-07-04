@@ -24,11 +24,33 @@ export async function GET(
     // Get auth token from header
     const authHeader = request.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        {
+          error: "Unauthorized",
+          message: "Invalid or missing authentication token",
+        },
+        { status: 401 }
+      );
     }
 
     const token = authHeader.split(" ")[1];
     const decoded = verifyToken(token);
+
+    // Check if teacher owns the class
+    const classData = await convex.query(api.classes.getByIdAndTeacher, {
+      id: id as Id<"classes">,
+      teacherId: decoded.userId as any,
+    });
+
+    if (!classData) {
+      return NextResponse.json(
+        {
+          error: "Not found",
+          message: "Class not found or you don't have permission to access it",
+        },
+        { status: 404 }
+      );
+    }
 
     // Get students in class
     const students = await convex.query(api.class_students.listStudents, {
@@ -37,12 +59,20 @@ export async function GET(
 
     return NextResponse.json(students);
   } catch (error) {
-    console.error("Error listing students:", error);
     if (error instanceof Error && error.message === "Invalid token") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        {
+          error: "Unauthorized",
+          message: "Invalid or missing authentication token",
+        },
+        { status: 401 }
+      );
     }
     return NextResponse.json(
-      { error: "Internal server error" },
+      {
+        error: "Internal server error",
+        message: "An unexpected error occurred while fetching students",
+      },
       { status: 500 }
     );
   }
@@ -58,7 +88,13 @@ export async function POST(
     // Get auth token from header
     const authHeader = request.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        {
+          error: "Unauthorized",
+          message: "Invalid or missing authentication token",
+        },
+        { status: 401 }
+      );
     }
 
     const token = authHeader.split(" ")[1];
@@ -66,46 +102,83 @@ export async function POST(
 
     // Parse and validate request body
     const body = await request.json();
-    console.log("Assign students request body:", body);
-
     const validatedData = assignStudentsSchema.parse(body);
-    console.log("Validated data:", validatedData);
 
     // Convert string IDs to Convex IDs
     const studentIds = validatedData.student_ids.map(
       (id) => id as Id<"students">
     );
 
-    // Assign students to class
+    // Assign students to class with teacher authorization
     const enrollmentIds = await convex.mutation(
       api.class_students.assignStudents,
       {
         classId: id as Id<"classes">,
         studentIds,
+        teacherId: decoded.userId as any,
       }
     );
 
-    return NextResponse.json({ enrollmentIds }, { status: 201 });
+    return NextResponse.json(
+      {
+        enrollmentIds,
+        message: "Students enrolled successfully",
+      },
+      { status: 201 }
+    );
   } catch (error) {
-    console.error("Error assigning students:", error);
     if (error instanceof z.ZodError) {
+      const errorDetails = error.errors.map((err) => ({
+        field: err.path.join("."),
+        message: err.message,
+        code: err.code,
+      }));
+
       return NextResponse.json(
         {
-          error: "Invalid input",
-          details: error.errors,
+          error: "Validation failed",
+          message: "Please check the provided data and try again",
+          details: errorDetails,
           received: body,
         },
         { status: 400 }
       );
     }
     if (error instanceof Error && error.message === "Invalid token") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        {
+          error: "Unauthorized",
+          message: "Invalid or missing authentication token",
+        },
+        { status: 401 }
+      );
     }
     if (error instanceof Error && error.message.includes("capacity")) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
+      return NextResponse.json(
+        {
+          error: "Capacity exceeded",
+          message: error.message,
+        },
+        { status: 400 }
+      );
+    }
+    if (
+      error instanceof Error &&
+      error.message.includes("not owned by teacher")
+    ) {
+      return NextResponse.json(
+        {
+          error: "Forbidden",
+          message: error.message,
+        },
+        { status: 403 }
+      );
     }
     return NextResponse.json(
-      { error: "Internal server error" },
+      {
+        error: "Internal server error",
+        message: "An unexpected error occurred while enrolling students",
+      },
       { status: 500 }
     );
   }
