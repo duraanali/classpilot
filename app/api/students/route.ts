@@ -1,29 +1,9 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 import { verifyToken } from "@/lib/jwt";
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
-
-// Validation schema for creating a student
-const createStudentSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
-  email: z.string().email("Invalid email address"),
-  grade: z
-    .number()
-    .min(1, "Grade must be at least 1")
-    .max(12, "Grade must be at most 12"),
-  age: z
-    .number()
-    .min(5, "Age must be at least 5")
-    .max(18, "Age must be at most 18")
-    .optional(),
-  gender: z.string().optional(),
-  notes: z.string().optional(),
-  parentEmail: z.string().email("Invalid parent email").optional(),
-  parentPhone: z.string().optional(),
-});
 
 export async function GET(request: Request) {
   try {
@@ -73,70 +53,43 @@ export async function POST(request: Request) {
     const token = authHeader.split(" ")[1];
     const decoded = verifyToken(token);
 
-    // Parse and validate request body
+    // Parse request body
     const body = await request.json();
     console.log("Received request body:", body); // Debug log
 
-    try {
-      // Ensure age is a number
-      if (body.age) {
-        body.age = Number(body.age);
-      }
-
-      const validatedData = createStudentSchema.parse(body);
-      console.log("Validated data:", validatedData); // Debug log
-
-      // Calculate grade from age if age is provided, otherwise use the provided grade
-      const grade = validatedData.age
-        ? Math.floor(validatedData.age / 2) + 1
-        : validatedData.grade;
-
-      // Create student in Convex
-      const studentId = await convex.mutation(api.students.create, {
-        name: validatedData.name,
-        email: validatedData.email,
-        grade: grade,
-        age: validatedData.age,
-        gender: validatedData.gender,
-        notes: validatedData.notes,
-        parentEmail: validatedData.parentEmail,
-        parentPhone: validatedData.parentPhone,
-        teacherId: decoded.userId as any, // Add teacher_id from authenticated user
-      });
-
-      // Get created student
-      const student = await convex.query(api.students.getById, {
-        id: studentId,
-      });
-
-      if (!student) {
-        throw new Error("Failed to create student");
-      }
-
-      return NextResponse.json(student);
-    } catch (validationError) {
-      if (validationError instanceof z.ZodError) {
-        console.error("Validation error:", validationError.errors); // Debug log
-
-        // Transform Zod errors to more user-friendly format
-        const errorDetails = validationError.errors.map((error) => ({
-          field: error.path.join("."),
-          message: error.message,
-          code: error.code,
-        }));
-
-        return NextResponse.json(
-          {
-            error: "Validation failed",
-            message: "Please check the provided data and try again",
-            details: errorDetails,
-            received: body, // Include received data for debugging
-          },
-          { status: 400 }
-        );
-      }
-      throw validationError;
+    // Ensure age is a number if provided
+    if (body.age) {
+      body.age = Number(body.age);
     }
+
+    // Calculate grade from age if age is provided, otherwise use the provided grade
+    const grade = body.age
+      ? Math.floor(body.age / 2) + 1
+      : body.grade;
+
+    // Create student in Convex
+    const studentId = await convex.mutation(api.students.create, {
+      name: body.name,
+      email: body.email,
+      grade: grade,
+      age: body.age,
+      gender: body.gender,
+      notes: body.notes,
+      parentEmail: body.parentEmail,
+      parentPhone: body.parentPhone,
+      teacherId: decoded.userId as any, // Add teacher_id from authenticated user
+    });
+
+    // Get created student
+    const student = await convex.query(api.students.getById, {
+      id: studentId,
+    });
+
+    if (!student) {
+      throw new Error("Failed to create student");
+    }
+
+    return NextResponse.json(student);
   } catch (error) {
     console.error("Error creating student:", error); // Debug log
 
