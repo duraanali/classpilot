@@ -33,9 +33,9 @@ POST /api/auth/register
 
 ```json
 {
-  "name": "string (required, min 2 characters)",
-  "email": "string (required, valid email)",
-  "password": "string (required, min 6 characters)"
+  "name": "string (required)",
+  "email": "string (required)",
+  "password": "string (required)"
 }
 ```
 
@@ -73,7 +73,7 @@ Request Body:
 
 ```json
 {
-  "email": "string (required, valid email)",
+  "email": "string (required)",
   "password": "string (required)"
 }
 ```
@@ -176,12 +176,13 @@ Request Body:
 
 ```json
 {
-  "full_name": "string (required, min 2 characters)",
-  "age": "number (required, 5-18)",
+  "name": "string (required)",
+  "email": "string (required)",
+  "grade": "number (optional, will be auto-calculated from age if age is provided)",
+  "age": "number (optional)",
   "gender": "string (optional)",
   "notes": "string (optional)",
-  "email": "string (optional, valid email)",
-  "parentEmail": "string (optional, valid email)",
+  "parentEmail": "string (optional)",
   "parentPhone": "string (optional)"
 }
 ```
@@ -192,8 +193,8 @@ Response:
 {
   "_id": "string",
   "name": "string",
-  "email": "string (auto-generated if not provided)",
-  "grade": "number (auto-calculated from age)",
+  "email": "string",
+  "grade": "number (auto-calculated from age if age is provided)",
   "age": "number",
   "gender": "string",
   "notes": "string",
@@ -207,7 +208,6 @@ Response:
 
 **Error Responses:**
 
-- `400 Bad Request`: Validation failed
 - `401 Unauthorized`: Invalid or missing token
 - `409 Conflict`: Email already exists
 - `500 Internal Server Error`: Server error
@@ -257,12 +257,13 @@ Request Body:
 
 ```json
 {
-  "full_name": "string (optional, min 2 characters)",
-  "age": "number (optional, 5-18)",
+  "name": "string (optional)",
+  "email": "string (optional)",
+  "grade": "number (optional, will be auto-calculated from age if age is provided)",
+  "age": "number (optional)",
   "gender": "string (optional)",
   "notes": "string (optional)",
-  "email": "string (optional, valid email)",
-  "parentEmail": "string (optional, valid email)",
+  "parentEmail": "string (optional)",
   "parentPhone": "string (optional)"
 }
 ```
@@ -288,7 +289,6 @@ Response:
 
 **Error Responses:**
 
-- `400 Bad Request`: Validation failed
 - `401 Unauthorized`: Invalid or missing token
 - `404 Not Found`: Student not found or not owned by teacher
 - `409 Conflict`: Email already exists
@@ -365,12 +365,12 @@ Request Body:
 
 ```json
 {
-  "name": "string (required, min 2 characters)",
-  "description": "string (optional, min 10 characters)",
+  "name": "string (required)",
+  "description": "string (optional)",
   "subject": "string (optional)",
-  "grade_level": "number (optional, 1-12)",
+  "grade_level": "number (optional)",
   "schedule": "string (optional)",
-  "capacity": "number (optional, min 1)"
+  "capacity": "number (optional)"
 }
 ```
 
@@ -393,7 +393,6 @@ Response:
 
 **Error Responses:**
 
-- `400 Bad Request`: Validation failed
 - `401 Unauthorized`: Invalid or missing token
 - `500 Internal Server Error`: Server error
 
@@ -455,12 +454,12 @@ Request Body:
 
 ```json
 {
-  "name": "string (optional, min 2 characters)",
-  "description": "string (optional, min 10 characters)",
+  "name": "string (optional)",
+  "description": "string (optional)",
   "subject": "string (optional)",
-  "grade_level": "number (optional, 1-12)",
+  "grade_level": "number (optional)",
   "schedule": "string (optional)",
-  "capacity": "number (optional, min 1)"
+  "capacity": "number (optional)"
 }
 ```
 
@@ -498,7 +497,6 @@ Response:
 
 **Error Responses:**
 
-- `400 Bad Request`: Validation failed
 - `401 Unauthorized`: Invalid or missing token
 - `404 Not Found`: Class not found or not owned by teacher
 - `500 Internal Server Error`: Server error
@@ -593,7 +591,7 @@ Response:
 
 **Error Responses:**
 
-- `400 Bad Request`: Validation failed or capacity exceeded
+- `400 Bad Request`: Capacity exceeded
 - `401 Unauthorized`: Invalid or missing token
 - `403 Forbidden`: Students or class not owned by teacher
 - `404 Not Found`: Class not found or not owned by teacher
@@ -639,10 +637,10 @@ Request Body:
 
 ```json
 {
-  "student_id": "string (required, student ID)",
-  "class_id": "string (required, class ID)",
-  "assignment": "string (required, min 1 character)",
-  "score": "number (required, 0-100)"
+  "student_id": "string (required)",
+  "class_id": "string (required)",
+  "assignment": "string (required)",
+  "score": "number (required)"
 }
 ```
 
@@ -688,7 +686,7 @@ Response:
 
 **Error Responses:**
 
-- `400 Bad Request`: Validation failed or student not enrolled
+- `400 Bad Request`: Student not enrolled
 - `401 Unauthorized`: Invalid or missing token
 - `403 Forbidden`: Student or class not owned by teacher
 - `500 Internal Server Error`: Server error
@@ -705,8 +703,8 @@ Request Body:
 
 ```json
 {
-  "assignment": "string (optional, min 1 character)",
-  "score": "number (optional, 0-100)"
+  "assignment": "string (optional)",
+  "score": "number (optional)"
 }
 ```
 
@@ -752,7 +750,6 @@ Response:
 
 **Error Responses:**
 
-- `400 Bad Request`: Validation failed
 - `401 Unauthorized`: Invalid or missing token
 - `403 Forbidden`: Grade not owned by teacher
 - `404 Not Found`: Grade not found or not owned by teacher

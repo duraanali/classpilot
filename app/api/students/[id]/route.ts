@@ -1,31 +1,10 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 import { verifyToken } from "@/lib/jwt";
 import { Id } from "@/convex/_generated/dataModel";
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
-
-// Validation schema for updating a student
-const updateStudentSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters").optional(),
-  email: z.string().email("Invalid email address").optional(),
-  grade: z
-    .number()
-    .min(1, "Grade must be at least 1")
-    .max(12, "Grade must be at most 12")
-    .optional(),
-  age: z
-    .number()
-    .min(5, "Age must be at least 5")
-    .max(18, "Age must be at most 18")
-    .optional(),
-  gender: z.string().optional(),
-  notes: z.string().optional(),
-  parentEmail: z.string().email("Invalid parent email").optional(),
-  parentPhone: z.string().optional(),
-});
 
 export async function GET(
   request: Request,
@@ -106,17 +85,14 @@ export async function PUT(
       body.age = Number(body.age);
     }
 
-    const validatedData = updateStudentSchema.parse(body);
-    console.log("Validated update data:", validatedData);
-
     // Transform the data to match the Convex schema
     const updateData = {
-      ...validatedData,
+      ...body,
     };
 
     // If age is provided, calculate grade
-    if (validatedData.age) {
-      updateData.grade = Math.floor(validatedData.age / 2) + 1;
+    if (body.age) {
+      updateData.grade = Math.floor(body.age / 2) + 1;
     }
 
     console.log("Final update data:", updateData);
@@ -155,23 +131,6 @@ export async function PUT(
 
     return NextResponse.json(student);
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      const errorDetails = error.errors.map((err) => ({
-        field: err.path.join("."),
-        message: err.message,
-        code: err.code,
-      }));
-
-      return NextResponse.json(
-        {
-          error: "Validation failed",
-          message: "Please check the provided data and try again",
-          details: errorDetails,
-          received: body,
-        },
-        { status: 400 }
-      );
-    }
     if (error instanceof Error && error.message === "Invalid token") {
       return NextResponse.json(
         {

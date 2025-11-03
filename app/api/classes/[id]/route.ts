@@ -1,24 +1,10 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 import { verifyToken } from "@/lib/jwt";
 import { Id } from "@/convex/_generated/dataModel";
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
-
-// Validation schema for updating a class
-const updateClassSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters").optional(),
-  description: z
-    .string()
-    .min(10, "Description must be at least 10 characters")
-    .optional(),
-  subject: z.string().optional(),
-  grade_level: z.number().min(1).max(12).optional(),
-  schedule: z.string().optional(),
-  capacity: z.number().min(1).optional(),
-});
 
 export async function GET(
   request: Request,
@@ -134,12 +120,11 @@ export async function PUT(
     }
 
     requestBody = await request.json();
-    const validatedData = updateClassSchema.parse(requestBody);
 
     // Transform the data to match the Convex schema
     const updateData = {
-      ...validatedData,
-      gradeLevel: validatedData.grade_level,
+      ...requestBody,
+      gradeLevel: requestBody.grade_level,
     };
     delete updateData.grade_level;
 
@@ -182,23 +167,6 @@ export async function PUT(
 
     return NextResponse.json(response);
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      const errorDetails = error.errors.map((err) => ({
-        field: err.path.join("."),
-        message: err.message,
-        code: err.code,
-      }));
-
-      return NextResponse.json(
-        {
-          error: "Validation failed",
-          message: "Please check the provided data and try again",
-          details: errorDetails,
-          received: requestBody,
-        },
-        { status: 400 }
-      );
-    }
     if (error instanceof Error && error.message === "Invalid token") {
       return NextResponse.json(
         {

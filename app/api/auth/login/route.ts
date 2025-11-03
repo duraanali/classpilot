@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { z } from "zod";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 import { generateToken } from "@/lib/jwt";
@@ -8,20 +7,13 @@ import { Id } from "@/convex/_generated/dataModel";
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
-// Validation schema
-const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string(),
-});
-
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const validatedData = loginSchema.parse(body);
 
     // Get user with password for verification
     const user = await convex.query(api.users.getByEmailWithPassword, {
-      email: validatedData.email,
+      email: body.email,
     });
 
     if (!user) {
@@ -33,7 +25,7 @@ export async function POST(request: Request) {
 
     // Verify password using bcrypt
     const isValidPassword = await bcrypt.compare(
-      validatedData.password,
+      body.password,
       user.password
     );
 
@@ -57,12 +49,6 @@ export async function POST(request: Request) {
       user: userWithoutPassword,
     });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: "Invalid input", details: error.errors },
-        { status: 400 }
-      );
-    }
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
