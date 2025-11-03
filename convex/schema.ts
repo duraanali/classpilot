@@ -66,4 +66,9 @@ export default defineSchema({
   })
     .index("by_class", ["classId"])
     .index("by_student", ["studentId"]),
+
+  tokenBlacklist: defineTable({
+    token: v.string(),
+    createdAt: v.string(),
+  }).index("by_token", ["token"]),
 });

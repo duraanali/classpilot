@@ -18,6 +18,7 @@ import type * as classes from "../classes.js";
 import type * as grades from "../grades.js";
 import type * as migrations from "../migrations.js";
 import type * as students from "../students.js";
+import type * as tokenBlacklist from "../tokenBlacklist.js";
 import type * as users from "../users.js";
 
 /**
@@ -34,6 +35,7 @@ declare const fullApi: ApiFromModules<{
   grades: typeof grades;
   migrations: typeof migrations;
   students: typeof students;
+  tokenBlacklist: typeof tokenBlacklist;
   users: typeof users;
 }>;
 export declare const api: FilterApi<

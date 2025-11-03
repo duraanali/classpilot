@@ -126,6 +126,36 @@ Response:
 - `401 Unauthorized`: Invalid or missing token
 - `500 Internal Server Error`: Server error
 
+### Logout
+
+Invalidates the current authentication token by adding it to a blacklist.
+
+```http
+POST /api/auth/logout
+```
+
+**Headers:**
+
+```http
+Authorization: Bearer <your_token>
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "message": "Successfully logged out"
+}
+```
+
+**Error Responses:**
+
+- `401 Unauthorized`: Invalid or missing token
+- `500 Internal Server Error`: Server error
+
+**Note:** After logout, the client should clear the stored token. The token is added to a server-side blacklist to prevent reuse.
+
 ---
 
 ## Students
